@@ -10,17 +10,21 @@ module.exports = {
                 .setDescription('The command to reload.')
                 .setRequired(true)),
     async execute(interaction) {
-        const commandName = interaction.options.getString('comamnd', true).toLowerCase();
-        const command = interaction.client.comamnds.get(commandName);
+        // Haetaan käyttäjän antama komennon nimi (pienennetään kirjaimet varmuuden vuoksi)
+        const commandName = interaction.options.getString('command', true).toLowerCase();
+        const command = interaction.client.commands.get(commandName);
 
         if (!command) {
             return interaction.reply(`There is no command with name \`${commandName}\`!`);
         }
 
+        // Poistetaan komento Node.js:n require-välimuistista,
+        // jotta tiedosto luetaan uudelleen levyltä eikä muistista
         delete require.cache[require.resolve(`./${command.data.name}.js`)];
 
         try {
-            interaction.client.command.delete(command.data.name);
+            // Poistetaan vanha versio kokoelmasta ja ladataan uusi tilalle
+            interaction.client.commands.delete(command.data.name);
             const newCommand = require(`./${command.data.name}.js`);
             interaction.client.commands.set(newCommand.data.name, newCommand);
             await interaction.reply(`Command \`${newCommand.data.name}\` was reloaded!`);
