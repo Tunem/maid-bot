@@ -4,6 +4,7 @@ const { clientId, guildId, token } = require('./config.json');
 const fs = require('node:fs');
 const path = require('node:path');
 
+// Kerätään kaikki komennot commands/-hakemiston alikansioista
 const commands = [];
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
@@ -14,6 +15,8 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(commandsPath, file);
         const command = require(filePath);
+
+        // Lisätään vain komennot joilla on vaaditut kentät
         if ('data' in command && 'execute' in command) {
             commands.push(command.data.toJSON());
         } else {
@@ -22,11 +25,14 @@ for (const folder of commandFolders) {
     }
 }
 
+// Luodaan REST-asiakas komentojen rekisteröintiä varten
 const rest = new REST().setToken(token);
 
 (async () => {
     try {
         console.log(`Started refreshing ${commands.length} application (/) commands.`);
+        // applicationGuildCommands rekisteröi komennot vain yhdelle palvelimelle (nopea, hyvä testaukseen)
+        // applicationCommands rekisteröi globaalisti kaikille palvelimille (voi kestää jopa tunti)
         const data = await rest.put(
             //applicationCommands for global, applicationGuildCommands for one server only
             Routes.applicationGuildCommands(clientId, guildId),
