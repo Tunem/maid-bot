@@ -5,7 +5,12 @@ const { Client, Collection, GatewayIntentBits } = require('discord.js');
 
 // Luodaan Discord-asiakasinstanssi
 // GatewayIntentBits.Guilds tarvitaan palvelin- ja kanavaoperaatioihin
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [
+	GatewayIntentBits.Guilds,
+	GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.DirectMessages,
+] });
 
 // Alustetaan kokoelmat komennoille ja cooldowneille asiakkaan päälle,
 // jotta ne ovat saatavilla kaikissa tapahtumankäsittelijöissä

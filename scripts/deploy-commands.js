@@ -1,12 +1,12 @@
 const { REST, Routes } = require('discord.js');
 
-const { clientId, guildId, token } = require('./config.json');
+const { clientId, guildId, token } = require('../config.json');
 const fs = require('node:fs');
 const path = require('node:path');
 
 // Kerätään kaikki komennot commands/-hakemiston alikansioista
 const commands = [];
-const foldersPath = path.join(__dirname, 'commands');
+const foldersPath = path.join(__dirname, '..', 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
 
 for (const folder of commandFolders) {
