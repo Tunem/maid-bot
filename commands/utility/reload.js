@@ -1,5 +1,6 @@
-const { SlashCommandBuilder } = require( "discord.js" );
-
+const { SlashCommandBuilder } = require('discord.js');
+const path = require('node:path');
+const fs = require('node:fs');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -10,27 +11,50 @@ module.exports = {
                 .setDescription('The command to reload.')
                 .setRequired(true)),
     async execute(interaction) {
-        // Haetaan käyttäjän antama komennon nimi (pienennetään kirjaimet varmuuden vuoksi)
         const commandName = interaction.options.getString('command', true).toLowerCase();
         const command = interaction.client.commands.get(commandName);
 
         if (!command) {
-            return interaction.reply(`There is no command with name \`${commandName}\`!`);
+            return interaction.reply({ content: `There is no command with name \`${commandName}\`!`, ephemeral: true });
         }
 
-        // Poistetaan komento Node.js:n require-välimuistista,
+        // Etsitään komennon tiedosto käymällä commands/-alikansiot läpi
+        // __dirname on commands/utility/, joten '../' vie commands/-kansioon
+        const foldersPath = path.join(__dirname, '..');
+        const commandFolders = fs.readdirSync(foldersPath).filter(f =>
+            fs.statSync(path.join(foldersPath, f)).isDirectory()
+        );
+
+        let commandFilePath = null;
+        for (const folder of commandFolders) {
+            const folderPath = path.join(foldersPath, folder);
+            const files = fs.readdirSync(folderPath).filter(f => f.endsWith('.js'));
+            for (const file of files) {
+                if (file === `${commandName}.js`) {
+                    commandFilePath = path.join(folderPath, file);
+                    break;
+                }
+            }
+            if (commandFilePath) break;
+        }
+
+        if (!commandFilePath) {
+            return interaction.reply({ content: `Could not find the file for command \`${commandName}\`.`, ephemeral: true });
+        }
+
+        // Poistetaan vanha versio Node.js:n require-välimuistista
         // jotta tiedosto luetaan uudelleen levyltä eikä muistista
-        delete require.cache[require.resolve(`./${command.data.name}.js`)];
+        delete require.cache[require.resolve(commandFilePath)];
 
         try {
-            // Poistetaan vanha versio kokoelmasta ja ladataan uusi tilalle
-            interaction.client.commands.delete(command.data.name);
-            const newCommand = require(`./${command.data.name}.js`);
+            // Ladataan komento uudelleen ja päivitetään kokoelmaan
+            interaction.client.commands.delete(commandName);
+            const newCommand = require(commandFilePath);
             interaction.client.commands.set(newCommand.data.name, newCommand);
-            await interaction.reply(`Command \`${newCommand.data.name}\` was reloaded!`);
+            await interaction.reply({ content: `Command \`${newCommand.data.name}\` was reloaded!`, ephemeral: true });
         } catch (error) {
             console.error(error);
-            await interaction.reply(`There was an error while reloading a command \`${command.data.name}\`:\n\`${error.message}\``);
+            await interaction.reply({ content: `There was an error while reloading \`${commandName}\`:\n\`${error.message}\``, ephemeral: true });
         }
     },
 };

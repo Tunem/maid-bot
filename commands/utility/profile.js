@@ -6,7 +6,7 @@ const { join, resolve } = require( "path" );
 
 // Rekisteröidään Roboto-fontti canvasia varten
 // Polku on suhteellinen projektin juureen
-GlobalFonts.registerFromPath(resolve('./fonts/roboto_5.0.8/ttf/roboto-latin-300-normal.ttf'), 'Roboto');
+GlobalFonts.registerFromPath(resolve('./assets/roboto_5.0.8/ttf/roboto-latin-300-normal.ttf'), 'Roboto');
 //Debug line for finding fonts
 //console.log(GlobalFonts.families.find((font) => font.family === 'Roboto'));
 
@@ -33,7 +33,7 @@ module.exports = {
         const context = canvas.getContext('2d');
 
         // Piirretään taustakuva koko canvaksen kokoiseksi
-        const background = await readFile('./canvas.jpg');
+        const background = await readFile('./assets/canvas.jpg');
         const backgroundImage = new Image();
         backgroundImage.src = background;
         context.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
