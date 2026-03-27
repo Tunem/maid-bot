@@ -2,13 +2,14 @@ const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('disco
 const { infoEmbed, errorEmbed, warningEmbed } = require('../../utils/embed');
 const { buildProfileCard } = require('../../utils/profileCard');
 
-// Aseta tähän sen kategorian ID johon tikettikanavat luodaan
-// Löydät ID:n Discordissa: Asetukset -> Edistynyt -> Kehittäjätila päälle,
-// sitten oikeaklikkaa kategoriaa ja valitse "Copy ID"
 const TICKET_CATEGORY_ID = '1486690388948553728';
 
+// Dashboard-integraatio
+let dashboard;
+try { dashboard = require('../../api/server'); } catch { /* api ei käytössä */ }
+
 module.exports = {
-    cooldown: 30, // Pidempi cooldown estää tikettien roskapostittamisen
+    cooldown: 30,
     data: new SlashCommandBuilder()
         .setName('ticket')
         .setDescription('Opens a support ticket.')
@@ -20,7 +21,6 @@ module.exports = {
         const reason = interaction.options.getString('reason', true);
         const guild  = interaction.guild;
 
-        // Tarkistetaan onko käyttäjällä jo auki oleva tiketti
         const existingTicket = guild.channels.cache.find(
             ch => ch.name === `ticket-${interaction.user.username.toLowerCase()}`
         );
@@ -33,42 +33,27 @@ module.exports = {
         }
 
         try {
-            // Luodaan uusi tekstikanava tikettikategoriaan
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${interaction.user.username.toLowerCase()}`,
                 type: ChannelType.GuildText,
                 parent: TICKET_CATEGORY_ID,
                 permissionOverwrites: [
-                    {
-                        // @everyone ei näe kanavaa oletuksena
-                        id: guild.roles.everyone,
-                        deny: [PermissionFlagsBits.ViewChannel],
-                    },
-                    {
-                        // Tiketin avaaja näkee ja voi kirjoittaa kanavalle
-                        id: interaction.user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                    },
-                    {
-                        // Botti tarvitsee oikeudet hallitakseen kanavaa
-                        id: interaction.client.user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels],
-                    },
+                    { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+                    { id: interaction.user.id,  allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                    { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] },
                 ],
             });
 
-            // Rakennetaan profiilikortti tiketin avaajasta
             const attachment = await buildProfileCard(
                 interaction.member.displayName,
                 interaction.user.displayAvatarURL({ extension: 'jpg' }),
             );
 
-            // Lähetetään aloitusviesti tikettikanavalle profiilikortin kera
             const embed = infoEmbed(
                 '🎫 Support Ticket',
                 `Hello <@${interaction.user.id}>! Support will be with you shortly.\n\n**Reason:** ${reason}`,
             )
-                .setImage('attachment://profile-image.png') // Viittaa liitettyyn profiilikorttiin
+                .setImage('attachment://profile-image.png')
                 .setFooter({ text: 'To close this ticket, use /closeticket' });
 
             await ticketChannel.send({ embeds: [embed], files: [attachment] });
@@ -77,6 +62,10 @@ module.exports = {
                 embeds: [infoEmbed('Ticket Created', `Your ticket has been created: ${ticketChannel}.`)],
                 ephemeral: true,
             });
+
+            // Ilmoitetaan dashboardille uudesta tiketistä
+            dashboard?.openTicket?.(ticketChannel.id, interaction.user.tag, reason);
+
         } catch (error) {
             console.error(error);
             await interaction.reply({

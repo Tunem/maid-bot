@@ -1,15 +1,16 @@
 const { Events, Collection } = require('discord.js');
 const { errorEmbed, warningEmbed } = require('../utils/embed');
 
+// Dashboard-integraatio: lokataan komennot reaaliajassa
+let dashboard;
+try { dashboard = require('../api/server'); } catch { /* api ei käytössä */ }
+
 module.exports = {
-    name: Events.InteractionCreate, // Tapahtuma laukeaa joka kerta kun käyttäjä tekee interaktion
+    name: Events.InteractionCreate,
     async execute(interaction) {
-        // Ohitetaan kaikki muut interaktiot paitsi slash-komennot
         if (!interaction.isChatInputCommand()) return;
 
-        // Haetaan komento asiakkaan commands-kokoelmasta komennon nimellä
         const command = interaction.client.commands.get(interaction.commandName);
-
         if (!command) {
             console.error(`No command matching ${interaction.commandName} was found.`);
             return;
@@ -17,23 +18,18 @@ module.exports = {
 
         // --- Cooldown-logiikka ---
         const { cooldowns } = interaction.client;
-
-        // Jos komennolle ei ole vielä cooldown-kokoelmaa, luodaan sellainen
         if (!cooldowns.has(command.data.name)) {
             cooldowns.set(command.data.name, new Collection());
         }
 
-        const now = Date.now();
-        const timestamps = cooldowns.get(command.data.name); // Käyttäjä-ID -> viimeisin käyttöaika
-        const defaultCooldownDuration = 3; // sekuntia
-        const cooldownAmount = (command.cooldown ?? defaultCooldownDuration) * 1_000; // muutetaan millisekunneiksi
+        const now                  = Date.now();
+        const timestamps           = cooldowns.get(command.data.name);
+        const defaultCooldown      = 3;
+        const cooldownAmount       = (command.cooldown ?? defaultCooldown) * 1_000;
 
         if (timestamps.has(interaction.user.id)) {
-            // Käyttäjällä on aiempi timestamp — tarkistetaan onko cooldown vielä voimassa
             const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
-
             if (now < expirationTime) {
-                // Cooldown on voimassa, ilmoitetaan käyttäjälle milloin se päättyy
                 const expirationTimestamp = Math.round(expirationTime / 1_000);
                 return interaction.reply({
                     embeds: [warningEmbed('Cooldown', `You are on cooldown for \`${command.data.name}\`. You can use it again <t:${expirationTimestamp}:R>.`)],
@@ -42,17 +38,35 @@ module.exports = {
             }
         }
 
-        // Asetetaan timestamp tähän hetkeen (sekä ensimmäisellä että uusintakäytöllä)
         timestamps.set(interaction.user.id, now);
-        // Poistetaan timestamp automaattisesti cooldown-ajan kuluttua
         setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
         // --- Komennon suoritus ---
         try {
             await command.execute(interaction);
+
+            // Lokataan onnistunut komento dashboardille
+            if (dashboard?.addLog) {
+                dashboard.addLog({
+                    type:    'command',
+                    command: interaction.commandName,
+                    user:    interaction.user.tag,
+                    guild:   interaction.guild?.name ?? 'DM',
+                });
+            }
         } catch (error) {
             console.error(error);
-            // Jos vastaus on jo lähetetty tai lykätty, käytetään followUp, muuten reply
+
+            // Lokataan virhe dashboardille
+            if (dashboard?.addLog) {
+                dashboard.addLog({
+                    type:    'error',
+                    command: interaction.commandName,
+                    user:    interaction.user.tag,
+                    guild:   interaction.guild?.name ?? 'DM',
+                });
+            }
+
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({
                     embeds: [errorEmbed('Error', 'There was an error while executing this command!')],
