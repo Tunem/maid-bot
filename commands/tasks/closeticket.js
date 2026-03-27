@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { errorEmbed } = require('../../utils/embed');
 
 module.exports = {
     cooldown: 5,
@@ -11,14 +12,14 @@ module.exports = {
         // Tarkistetaan että komento ajetaan tikettikanavalla
         if (!interaction.channel.name.startsWith('ticket-')) {
             return interaction.reply({
-                content: '❌ This command can only be used in a ticket channel.',
+                embeds: [errorEmbed('Invalid Channel', 'This command can only be used in a ticket channel.')],
                 ephemeral: true,
             });
         }
 
+        // Pieni viive ennen sulkemista jotta käyttäjä ehtii lukea viestin
         await interaction.reply('🔒 Closing ticket in 5 seconds...');
 
-        // Pieni viive ennen sulkemista jotta käyttäjä ehtii lukea viestin
         setTimeout(async () => {
             try {
                 await interaction.channel.delete();

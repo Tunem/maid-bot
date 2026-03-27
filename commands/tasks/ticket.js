@@ -1,4 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { infoEmbed, errorEmbed, warningEmbed } = require('../../utils/embed');
+const { buildProfileCard } = require('../../utils/profileCard');
 
 // Aseta tähän sen kategorian ID johon tikettikanavat luodaan
 // Löydät ID:n Discordissa: Asetukset -> Edistynyt -> Kehittäjätila päälle,
@@ -19,14 +21,13 @@ module.exports = {
         const guild  = interaction.guild;
 
         // Tarkistetaan onko käyttäjällä jo auki oleva tiketti
-        // Tikettikanavan nimi on muodossa "ticket-käyttäjänimi"
         const existingTicket = guild.channels.cache.find(
             ch => ch.name === `ticket-${interaction.user.username.toLowerCase()}`
         );
 
         if (existingTicket) {
             return interaction.reply({
-                content: `❌ You already have an open ticket: ${existingTicket}.`,
+                embeds: [warningEmbed('Ticket Already Open', `You already have an open ticket: ${existingTicket}.`)],
                 ephemeral: true,
             });
         }
@@ -36,7 +37,7 @@ module.exports = {
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${interaction.user.username.toLowerCase()}`,
                 type: ChannelType.GuildText,
-                parent: TICKET_CATEGORY_ID, // Tikettien kategoria
+                parent: TICKET_CATEGORY_ID,
                 permissionOverwrites: [
                     {
                         // @everyone ei näe kanavaa oletuksena
@@ -56,24 +57,30 @@ module.exports = {
                 ],
             });
 
-            // Lähetetään aloitusviesti tikettikanavalle
-            const embed = new EmbedBuilder()
-                .setColor(0x00cc99)
-                .setTitle('🎫 Support Ticket')
-                .setDescription(`Hello <@${interaction.user.id}>! Support will be with you shortly.\n\n**Reason:** ${reason}`)
-                .setFooter({ text: 'To close this ticket, use /closeticket' })
-                .setTimestamp();
+            // Rakennetaan profiilikortti tiketin avaajasta
+            const attachment = await buildProfileCard(
+                interaction.member.displayName,
+                interaction.user.displayAvatarURL({ extension: 'jpg' }),
+            );
 
-            await ticketChannel.send({ embeds: [embed] });
+            // Lähetetään aloitusviesti tikettikanavalle profiilikortin kera
+            const embed = infoEmbed(
+                '🎫 Support Ticket',
+                `Hello <@${interaction.user.id}>! Support will be with you shortly.\n\n**Reason:** ${reason}`,
+            )
+                .setImage('attachment://profile-image.png') // Viittaa liitettyyn profiilikorttiin
+                .setFooter({ text: 'To close this ticket, use /closeticket' });
+
+            await ticketChannel.send({ embeds: [embed], files: [attachment] });
 
             await interaction.reply({
-                content: `✅ Your ticket has been created: ${ticketChannel}.`,
+                embeds: [infoEmbed('Ticket Created', `Your ticket has been created: ${ticketChannel}.`)],
                 ephemeral: true,
             });
         } catch (error) {
             console.error(error);
             await interaction.reply({
-                content: '❌ Failed to create ticket. Make sure the category ID is correct and I have the necessary permissions.',
+                embeds: [errorEmbed('Failed', 'Failed to create ticket. Make sure the category ID is correct and I have the necessary permissions.')],
                 ephemeral: true,
             });
         }

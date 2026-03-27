@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
+const { buildEmbed, COLORS } = require('../../utils/embed');
 
 module.exports = {
     cooldown: 10,
@@ -39,13 +40,14 @@ module.exports = {
         // Emojit äänestysreaktioita varten, yksi per vaihtoehto
         const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣'];
 
-        // Rakennetaan embed äänestystä varten
-        const embed = new EmbedBuilder()
-            .setColor(0x0099ff)
-            .setTitle('📊 ' + question)
-            .setDescription(options.map((opt, i) => `${emojis[i]} ${opt}`).join('\n'))
-            .setFooter({ text: `Poll by ${interaction.user.username}` })
-            .setTimestamp();
+        // Rakennetaan embed buildEmbed()-funktiolla
+        const embed = buildEmbed({
+            title: '📊 ' + question,
+            description: options.map((opt, i) => `${emojis[i]} ${opt}`).join('\n'),
+            color: COLORS.info,
+            footer: `Poll by ${interaction.user.username}`,
+            timestamp: true,
+        });
 
         // Lähetetään äänestys ja lisätään reaktioemojit automaattisesti
         const pollMessage = await interaction.reply({ embeds: [embed], fetchReply: true });

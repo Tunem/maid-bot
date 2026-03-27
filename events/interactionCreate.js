@@ -1,4 +1,5 @@
 const { Events, Collection } = require('discord.js');
+const { errorEmbed, warningEmbed } = require('../utils/embed');
 
 module.exports = {
     name: Events.InteractionCreate, // Tapahtuma laukeaa joka kerta kun käyttäjä tekee interaktion
@@ -27,14 +28,17 @@ module.exports = {
         const defaultCooldownDuration = 3; // sekuntia
         const cooldownAmount = (command.cooldown ?? defaultCooldownDuration) * 1_000; // muutetaan millisekunneiksi
 
-        if ( timestamps.has(interaction.user.id)) {
+        if (timestamps.has(interaction.user.id)) {
             // Käyttäjällä on aiempi timestamp — tarkistetaan onko cooldown vielä voimassa
             const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
 
             if (now < expirationTime) {
                 // Cooldown on voimassa, ilmoitetaan käyttäjälle milloin se päättyy
                 const expirationTimestamp = Math.round(expirationTime / 1_000);
-                return interaction.reply({ content: `Please wait, you are on cooldown for \`${command.data.name}\`. You can use it again <t:${expirationTimestamp}:R>.`, ephemeral: true });
+                return interaction.reply({
+                    embeds: [warningEmbed('Cooldown', `You are on cooldown for \`${command.data.name}\`. You can use it again <t:${expirationTimestamp}:R>.`)],
+                    ephemeral: true,
+                });
             }
         }
 
@@ -48,11 +52,17 @@ module.exports = {
             await command.execute(interaction);
         } catch (error) {
             console.error(error);
-             // Jos vastaus on jo lähetetty tai lykätty, käytetään followUp, muuten reply
+            // Jos vastaus on jo lähetetty tai lykätty, käytetään followUp, muuten reply
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true});
+                await interaction.followUp({
+                    embeds: [errorEmbed('Error', 'There was an error while executing this command!')],
+                    ephemeral: true,
+                });
             } else {
-                await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true});
+                await interaction.reply({
+                    embeds: [errorEmbed('Error', 'There was an error while executing this command!')],
+                    ephemeral: true,
+                });
             }
         }
     },

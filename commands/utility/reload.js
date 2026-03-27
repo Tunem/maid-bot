@@ -1,4 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { successEmbed, errorEmbed } = require('../../utils/embed');
 const path = require('node:path');
 const fs = require('node:fs');
 
@@ -15,7 +16,10 @@ module.exports = {
         const command = interaction.client.commands.get(commandName);
 
         if (!command) {
-            return interaction.reply({ content: `There is no command with name \`${commandName}\`!`, ephemeral: true });
+            return interaction.reply({
+                embeds: [errorEmbed('Not Found', `There is no command with name \`${commandName}\`!`)],
+                ephemeral: true,
+            });
         }
 
         // Etsitään komennon tiedosto käymällä commands/-alikansiot läpi
@@ -39,7 +43,10 @@ module.exports = {
         }
 
         if (!commandFilePath) {
-            return interaction.reply({ content: `Could not find the file for command \`${commandName}\`.`, ephemeral: true });
+            return interaction.reply({
+                embeds: [errorEmbed('Not Found', `Could not find the file for command \`${commandName}\`.`)],
+                ephemeral: true,
+            });
         }
 
         // Poistetaan vanha versio Node.js:n require-välimuistista
@@ -51,10 +58,16 @@ module.exports = {
             interaction.client.commands.delete(commandName);
             const newCommand = require(commandFilePath);
             interaction.client.commands.set(newCommand.data.name, newCommand);
-            await interaction.reply({ content: `Command \`${newCommand.data.name}\` was reloaded!`, ephemeral: true });
+            await interaction.reply({
+                embeds: [successEmbed('Reloaded', `Command \`${newCommand.data.name}\` was reloaded!`)],
+                ephemeral: true,
+            });
         } catch (error) {
             console.error(error);
-            await interaction.reply({ content: `There was an error while reloading \`${commandName}\`:\n\`${error.message}\``, ephemeral: true });
+            await interaction.reply({
+                embeds: [errorEmbed('Reload Failed', `There was an error while reloading \`${commandName}\`:\n\`${error.message}\``)],
+                ephemeral: true,
+            });
         }
     },
 };

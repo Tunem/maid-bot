@@ -1,4 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
+const { buildEmbed, COLORS } = require('../../utils/embed');
+const { buildProfileCard } = require('../../utils/profileCard');
 
 module.exports = {
     cooldown: 5,
@@ -21,26 +23,29 @@ module.exports = {
             .map(role => `<@&${role.id}>`)
             .join(', ') || 'None';
 
-        const embed = new EmbedBuilder()
-            .setColor(member?.displayHexColor || 0x0099ff)
-            .setTitle(`${user.username}'s Info`)
-            .setThumbnail(user.displayAvatarURL({ extension: 'jpg' }))
-            .addFields(
-                // Discordin sisäinen käyttäjätunnus (pysyvä)
-                { name: '🪪 User ID',      value: user.id,                                          inline: true },
-                // Tilin luontipäivä Discordissa
-                { name: '📅 Account Created', value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`, inline: true },
-                // Palvelimelle liittymispäivä
-                { name: '📥 Joined Server', value: member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>` : 'Unknown', inline: true },
-                // Boostaa palvelinta?
-                { name: '🚀 Boosting',      value: member?.premiumSince ? `Since <t:${Math.floor(member.premiumSinceTimestamp / 1000)}:D>` : 'No', inline: true },
-                // Onko botti?
-                { name: '🤖 Bot',           value: user.bot ? 'Yes' : 'No',                         inline: true },
-                // Palvelinkohtaiset roolit
-                { name: `🏷️ Roles (${member?.roles.cache.size - 1 || 0})`, value: roles },
-            )
-            .setTimestamp();
+        // Rakennetaan profiilikortti canvasilla
+        const attachment = await buildProfileCard(
+            member?.displayName ?? user.username,
+            user.displayAvatarURL({ extension: 'jpg' }),
+        );
 
-        await interaction.reply({ embeds: [embed] });
+        // Rakennetaan infoembed buildEmbed()-funktiolla
+        // Profiilikortti näytetään embedin isona kuvana
+        const embed = buildEmbed({
+            title: `${user.username}'s Info`,
+            color: member?.displayHexColor ? parseInt(member.displayHexColor.replace('#', ''), 16) : COLORS.info,
+            image: 'attachment://profile-image.png', // Viittaa liitettyyn profiilikorttiin
+            timestamp: true,
+            fields: [
+                { name: '🪪 User ID',        value: user.id,                                                                                              inline: true },
+                { name: '📅 Account Created', value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`,                                                 inline: true },
+                { name: '📥 Joined Server',   value: member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>` : 'Unknown',                           inline: true },
+                { name: '🚀 Boosting',        value: member?.premiumSince ? `Since <t:${Math.floor(member.premiumSinceTimestamp / 1000)}:D>` : 'No',      inline: true },
+                { name: '🤖 Bot',             value: user.bot ? 'Yes' : 'No',                                                                             inline: true },
+                { name: `🏷️ Roles (${member?.roles.cache.size - 1 || 0})`, value: roles },
+            ],
+        });
+
+        await interaction.reply({ embeds: [embed], files: [attachment] });
     },
 };
