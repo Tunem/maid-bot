@@ -183,4 +183,19 @@ server.listen(PORT, () => {
     console.log(`[dashboard] http://localhost:${PORT}`);
 });
 
+// Keep-Alive Scripti
+const axios = require('axios'); // Muista asentaa: npm install axios
+
+setInterval(() => {
+    // Render antaa sovellukselle URL-osoitteen, esim. 'https://maid-bot.onrender.com'
+    // Korvaa tämä myöhemmin omalla Render-osoitteellasi tai käytä ympäristömuuttujaa
+    const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+    
+    if (url.includes('onrender.com')) {
+        axios.get(`${url}/api/state`)
+            .then(() => console.log('[keep-alive] Ping sent successfully'))
+            .catch(err => console.error('[keep-alive] Error pinging self:', err.message));
+    }
+}, 600000); // 600 000 ms = 10 minuuttia
+
 module.exports = { broadcast, updateState, addLog, setRoles, openTicket, closeTicketInternal };
